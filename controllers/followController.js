@@ -1,60 +1,71 @@
-const Follow = require('../models/Follow');
-const User = require('../models/User');
+const Follow = require("../models/Follow")
+const { createNotification } = require("./notificationController")
+const { nanoid } = require("nanoid")
 
 exports.toggleFollow = async (req, res) => {
   try {
-    const { targetUserId } = req.body; // El userId a seguir/dejar de seguir
-    if (targetUserId === req.user.userId) {
-      return res.status(400).json({ error: 'No puedes seguirte a ti mismo' });
+    const userId = req.params.targetUserId// Usuario a seguir
+    const followerId = req.user.userId // Usuario que sigue
+
+    if (userId === followerId) {
+      return res.status(400).json({ error: "No puedes seguirte a ti mismo" })
     }
 
-    // Verificar usuario existe
-    const target = await User.findById(targetUserId);
-    if (!target) {
-      return res.status(404).json({ error: 'Usuario a seguir no existe' });
+    // Verificar si ya sigue al usuario
+    const existingFollow = await Follow.findOne({
+      followerId,
+      followingId: userId,
+    })
+
+    if (existingFollow) {
+      // Dejar de seguir
+      await Follow.findByIdAndDelete(existingFollow._id)
+      res.json({ msg: "Dejaste de seguir al usuario", following: false })
+    } else {
+      // Seguir usuario
+      const newFollow = new Follow({
+        followId: nanoid(10),
+        followerId,
+        followingId: userId,
+      })
+
+      await newFollow.save()
+
+      // Crear notificación
+      await createNotification({
+        userId: userId,
+        actorId: followerId,
+        type: "follow",
+      })
+
+      res.json({ msg: "Ahora sigues al usuario", following: true })
     }
-
-    const exists = await Follow.findOne({
-      followerId: req.user.userId,
-      followingId: targetUserId
-    });
-
-    if (exists) {
-      await exists.remove();
-      // Actualizar contador
-      await User.findByIdAndUpdate(targetUserId, { $inc: { followCount: -1 } });
-      return res.json({ msg: 'Unfollowed' });
-    }
-
-    // Crear follow
-    await new Follow({
-      followerId: req.user.userId,
-      followingId: targetUserId
-    }).save();
-    // Incrementar contador en target
-    await User.findByIdAndUpdate(targetUserId, { $inc: { followCount: 1 } });
-    res.status(201).json({ msg: 'Followed' });
   } catch (err) {
-    res.status(500).json({ error: 'Error al togglear follow', details: err.message });
+    res.status(500).json({ error: "Error al procesar seguimiento", details: err.message })
   }
-};
+}
 
 exports.getFollowers = async (req, res) => {
   try {
-    const followers = await Follow.find({ followingId: req.user.userId })
-      .populate('followerId', 'username foto');
-    res.json(followers);
+    const userId = req.user.userId
+
+    const followers = await Follow.find({ followingId: userId }).populate("followerId", "nombre username foto")
+
+    res.json(followers)
   } catch (err) {
-    res.status(500).json({ error: 'Error al listar followers', details: err.message });
+    res.status(500).json({ error: "Error al obtener seguidores", details: err.message })
   }
-};
+}
 
 exports.getFollowing = async (req, res) => {
   try {
-    const following = await Follow.find({ followerId: req.user.userId })
-      .populate('followingId', 'username foto');
-    res.json(following);
+    const userId = req.user.userId
+
+    const following = await Follow.find({ followerId: userId }).populate("followingId", "nombre username foto")
+
+    res.json(following)
   } catch (err) {
-    res.status(500).json({ error: 'Error al listar following', details: err.message });
+    res.status(500).json({ error: "Error al obtener seguidos", details: err.message })
   }
-};
+}
+

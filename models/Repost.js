@@ -1,10 +1,9 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const repostSchema = new mongoose.Schema({
-  repostId: { type: String, unique: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
-  date: { type: Date, default: Date.now }
+const RepostSchema = new mongoose.Schema({
+  repostId: String,
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  postId: { type: mongoose.Schema.Types.ObjectId, ref: "Post", required: true },
 }, { timestamps: true });
 
-module.exports = mongoose.model('Repost', repostSchema);
+module.exports = mongoose.model("Repost", RepostSchema);

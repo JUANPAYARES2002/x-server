@@ -1,5 +1,7 @@
 const Post = require('../models/Post');
+const Comment = require("../models/Comment")
 const { nanoid } = require('nanoid');
+const Follow = require('../models/Follow');
 
 // Crear nueva publicación
 exports.createPost = async (req, res) => {
@@ -23,30 +25,126 @@ exports.createPost = async (req, res) => {
 
 
 // Obtener todas las publicaciones
-exports.getPosts = async (_, res) => {
+exports.getPosts = async (req, res) => {
   try {
     const posts = await Post.find()
-      .populate('userId', 'username foto')
-      .populate('comments')
-      .populate('likes')
-      .sort({ createdAt: -1 });
+      .populate("userId", "nombre username foto")
+      .populate({
+        path: "comments",
+        populate: {
+          path: "userId",
+          select: "nombre username foto",
+        },
+      })
+      .populate({
+        path: "likes",
+        populate: {
+          path: "userId",
+          select: "nombre username",
+        },
+      })
+      .populate({
+        path: "repost",
+        populate: {
+          path: "userId",
+          select: "nombre username",
+        },
+      })
+      .sort({ date: -1 })
+
+    res.json(posts)
+  } catch (err) {
+    console.error("Error getting posts:", err)
+    res.status(500).json({ error: "Error al obtener posts", details: err.message })
+  }
+}
+
+exports.getFollowingPosts = async (req, res) => {
+  try {
+    console.log("req.user:", req.user); // Agrega esto
+    const userId = req.user.userId;
+
+    const following = await Follow.find({ followerId: userId }).select("followingId");
+    console.log("following:", following); // Agrega esto
+
+    const followingIds = following.map((follow) => follow.followingId);
+    followingIds.push(userId);
+    console.log("followingIds:", followingIds); // Agrega esto
+
+    const posts = await Post.find({ userId: { $in: followingIds } })
+      .populate("userId", "nombre username foto")
+      .populate({ path: "comments", populate: { path: "userId", select: "nombre username foto" } })
+      .populate({ path: "likes", populate: { path: "userId", select: "nombre username" } })
+      .populate({ path: "repost", populate: { path: "userId", select: "nombre username" } })
+      .sort({ date: -1 });
+
     res.json(posts);
   } catch (err) {
-    res.status(500).json({ error: 'Error al listar posts', details: err.message });
+    console.error("🔥 Error real:", err.message);
+    console.error("🔍 Stack trace:", err.stack);
+    res.status(500).json({ error: "Error al obtener posts de seguidos", details: err.message });
   }
 };
 
 // Obtener un post por ID
 exports.getPostById = async (req, res) => {
   try {
-    const post = await Post.findOne({ postId: req.params.id })
+    const { id } = req.params
+
+    const post = await Post.findById(id)
+      .populate("userId", "nombre username foto")
+      .populate({
+        path: "comments",
+        populate: {
+          path: "userId",
+          select: "nombre username foto",
+        },
+      })
+      .populate({
+        path: "likes",
+        populate: {
+          path: "userId",
+          select: "nombre username",
+        },
+      })
+      .populate({
+        path: "repost",
+        populate: {
+          path: "userId",
+          select: "nombre username",
+        },
+      })
+
+    if (!post) {
+      return res.status(404).json({ error: "Post no encontrado" })
+    }
+
+    res.json(post)
+  } catch (err) {
+    console.error("Error getting post:", err)
+    res.status(500).json({ error: "Error al obtener el post", details: err.message })
+  }
+}
+
+// Obtnener todos los post de un ID usuario
+exports.getPostsByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Busca todos los posts cuyo campo userId coincida
+    const posts = await Post.find({ userId })
       .populate('userId', 'username foto')
       .populate('comments')
-      .populate('likes');
-    if (!post) return res.status(404).json({ error: 'Post no encontrado' });
-    res.json(post);
+      .populate('likes')
+      .populate('repost')
+      .sort({ createdAt: -1 });
+
+    return res.json(posts);
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener post', details: err.message });
+    console.error('Error en getPostsByUser:', err);
+    return res
+      .status(500)
+      .json({ error: 'Error al listar posts de usuario', details: err.message });
   }
 };
 

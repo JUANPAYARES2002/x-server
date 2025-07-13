@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
   username: { type: String, unique: true },
   telefono: String,
   fecha: Date,
-  contraseña: String,
+  password: String,
   foto: String,
   userId: String,
   followCount: { type: Number, default: 0 }

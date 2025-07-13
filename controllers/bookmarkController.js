@@ -6,7 +6,7 @@ exports.toggleBookmark = async (req, res) => {
     const { postId } = req.body;
     const exists = await Bookmark.findOne({ userId: req.user.userId, postId });
     if (exists) {
-      await exists.remove();
+      await Bookmark.deleteOne({ _id: exists._id });
       return res.json({ msg: 'Bookmark removido' });
     }
     const bm = new Bookmark({ userId: req.user.userId, postId });
@@ -21,10 +21,18 @@ exports.toggleBookmark = async (req, res) => {
 exports.getBookmarks = async (req, res) => {
   try {
     const bms = await Bookmark.find({ userId: req.user.userId })
-      .populate('postId')
+      .populate({
+        path: 'postId',
+        populate: {
+          path: 'userId',
+          select: 'nombre username foto'
+        }
+      })
       .sort({ createdAt: -1 });
+      
     res.json(bms);
   } catch (err) {
     res.status(500).json({ error: 'Error al listar bookmarks', details: err.message });
   }
 };
+

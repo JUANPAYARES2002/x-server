@@ -6,7 +6,7 @@ const { nanoid } = require('nanoid');
 // Registro
 exports.createUser = async (req, res) => {
   try {
-    const { nombre, username, telefono, fecha, contraseña } = req.body;
+    const { nombre, username, telefono, fecha, password } = req.body;
     const file = req.file;
 
     const existingUser = await User.findOne({ username });
@@ -14,14 +14,14 @@ exports.createUser = async (req, res) => {
       return res.status(400).json({ error: 'El nombre de usuario ya existe' });
     }
 
-    const hashedPassword = await bcrypt.hash(contraseña, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
       nombre,
       username,
       telefono,
       fecha,
-      contraseña: hashedPassword,
+      password: hashedPassword,
       foto: file ? `/uploads/${file.filename}` : null,
       userId: `${username}${Date.now()}`,
       followCount: 0
@@ -53,14 +53,14 @@ exports.createUser = async (req, res) => {
 // Login
 exports.loginUser = async (req, res) => {
   try {
-    const { username, contraseña } = req.body;
+    const { username, password } = req.body;
     const user = await User.findOne({ username });
 
     if (!user) {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    const isMatch = await bcrypt.compare(contraseña, user.contraseña);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
@@ -91,7 +91,7 @@ exports.loginUser = async (req, res) => {
 exports.getUserProfile = async (req, res) => {
   try {
     const userId = req.user.userId; // Obtenido del token decodificado
-    const user = await User.findById(userId).select('-contraseña'); // Excluye la contraseña
+    const user = await User.findById(userId).select('-password'); // Excluye la contraseña
 
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -102,6 +102,20 @@ exports.getUserProfile = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener perfil', details: error.message });
   }
 };
+
+// Obtneer perfil por username
+exports.getUserByUsername = async (req, res) => {
+  try {
+    const { username } = req.params
+    const user = await User.findOne({ username })
+
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+    res.json(user)
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener usuario', details: err.message })
+  }
+}
 
 exports.updateUser = async (req, res) => {
   try {

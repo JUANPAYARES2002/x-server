@@ -6,13 +6,17 @@ const {
   createPost,
   getPosts,
   getPostById,
+  getPostsByUser,
   updatePost,
-  deletePost
+  deletePost,
+  getFollowingPosts
 } = require('../controllers/postController');
 
 router.post('/', auth, upload.single('foto'), createPost);
 router.get('/', getPosts);
+router.get("/following", auth, getFollowingPosts)
 router.get('/:id', getPostById);
+router.get('/user/:userId', getPostsByUser);
 router.put('/:id', auth, updatePost);
 router.delete('/:id', auth, deletePost);
 
